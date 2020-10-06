@@ -17,7 +17,6 @@ class PyBrowser:
         self.exec_path = exec_path
         self.driver = None
         self.homepage = homepage
-        self.url2tab = {}
 
     def new_session(self):
         self.stop()
@@ -27,7 +26,16 @@ class PyBrowser:
         else:
             self.driver = webdriver.Firefox(options=self.options)
         self.driver.get(self.homepage)
-        self.url2tab[self.homepage] = self.open_tabs[-1]
+
+    @property
+    def tab2url(self):
+        tab2url = {}
+        current = self.current_tab_id
+        for tab in self.open_tabs:
+            self.switch_to_tab(tab)
+            tab2url[tab] = self.current_url
+        self.switch_to_tab(current)
+        return tab2url
 
     @property
     def current_url(self):
@@ -50,15 +58,14 @@ class PyBrowser:
     def open_new_tab(self, url, switch=True):
         self.driver.execute_script(
             '''window.open("{url}","_blank");'''.format(url=url))
-        self.url2tab[url] = self.open_tabs[-1]
+        tab = self.open_tabs[-1]
         if switch:
-            self.switch_to_tab(self.url2tab[url])
+            self.switch_to_tab(tab)
+        return tab
 
     def switch_to_tab(self, tab_id):
         if not self.driver:
             raise NoSession
-        if tab_id in self.url2tab:
-            tab_id = self.url2tab[tab_id]
         self.driver.switch_to.window(window_name=tab_id)
 
     def close_tab(self, tab_id=None):
@@ -106,7 +113,7 @@ class PyBrowser:
         return element
 
     def save_screenshot(self, path=None):
-        path = path or join(gettempdir(), "pybrower_screenshot.png")
+        path = path or join(gettempdir(), "pybrowesr_screenshot.png")
         self.driver.save_screenshot(path)
         return path
 
@@ -114,7 +121,6 @@ class PyBrowser:
         if self.driver:
             self.driver.quit()
         self.driver = None
-        self.url2tab = {}
 
     def __enter__(self):
         self.new_session()

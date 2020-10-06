@@ -7,18 +7,18 @@ exec_path = join(dirname(__file__), "geckodriver")
 
 # Using context manager
 with PyBrowser(exec_path, headless=False) as browser:
-    print(browser.open_tabs)
-    print(browser.current_tab_id)
-    print(browser.current_url)
-    browser.open_new_tab("https://www.hellochatterbox.net")
 
-    sleep(10)
-    print(browser.current_url)
-    print(browser.open_tabs)
-    print(browser.current_tab_id)
+    assert browser.current_url == browser.homepage
+    homepage_id = browser.current_tab_id
 
-    browser.switch_to_tab("https://liberapay.com/jarbasAI/")
-    print(browser.current_url)
+    tab_id = browser.open_new_tab("https://github.com/JarbasAl/pybrowser")
+    sleep(3)  # allow page load
+    assert browser.current_url == "https://github.com/JarbasAl/pybrowser"
+    assert browser.current_tab_id == tab_id
+
+    browser.switch_to_tab(homepage_id)
+    sleep(3)
+    assert browser.current_url == browser.homepage
+    assert browser.current_tab_id == homepage_id
+
     print(browser.open_tabs)
-    print(browser.current_tab_id)
-    sleep(10)
