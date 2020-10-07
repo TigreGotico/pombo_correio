@@ -9,20 +9,18 @@ class Cleverbot(PyBrowser):
     def new_session(self):
         super().new_session()
         self.utterances = []
-        self._accept()
-
-    def _accept(self):
-        accept_btn = self.wait_for_xpath(
-                                  "/html/body/div[1]/div[2]/div[1]/div/div/form/input")
-        accept_btn.click()
+        # click accept button
+        self.click_xpath("/html/body/div[1]/div[2]/div[1]/div/div/form/input")
 
     def ask(self, utterance):
+        # submit input
         xpath = "/html/body/div[1]/div[2]/div[3]/form/input[1]"
-        input = self.wait_for_xpath(xpath)
-        input.send_keys(utterance)
-        input.submit()
+        self.send_keys_xpath(utterance, xpath)
+        self.submit_xpath(xpath)
+
+        # wait for response
         share_marker = '//*[@id="snipTextIcon"]'
-        _ = self.wait_for_xpath(share_marker)
+        self.wait_for_xpath(share_marker)
         answer = self.get_xpath('/html/body/div[1]/div[2]/div[3]/p[9]/span[1]').text
         self.utterances.append((utterance, answer))
         return answer
@@ -58,6 +56,33 @@ if __name__ == "__main__":
         path = bot.save_screenshot()
         print(path)
         print(bot.utterances)
+    """
+    BrowserEvents.BROWSER_OPEN {'open_tabs': ['15'], 'current_tab': '15', 'current_url': 'https://www.cleverbot.com/', 'tab2url': {'15': 'https://www.cleverbot.com/'}}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': ''}
+    BrowserEvents.ELEMENT_CLICKED {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': ''}
+    BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'hello', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': ''}
+    BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None}
+    BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': 'Hallo.', 'href': None}
+    
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': ''}
+    BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'are you a bot', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': ''}
+    BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+    BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None}
+    BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+    BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': 'Hello I am a human.', 'href': None}
+    """
 
     # Manual session handling
     bot = Cleverbot(exec_path)
@@ -78,8 +103,8 @@ if __name__ == "__main__":
         print(bot.utterances)
 
         bot.save_screenshot("sess2.png")
-    except: # timeout and such
-        pass
+    except Exception as e: # timeout and such
+        print(e)
 
     # ensure stop is called or a firefox process will be left running!
     bot.stop()

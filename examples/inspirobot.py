@@ -24,4 +24,11 @@ if __name__ == "__main__":
     # Using context manager
     with Inspirobot(exec_path) as bot:
        url = bot.generate()
-       print(url)
+       """
+       BrowserEvents.BROWSER_OPEN {'open_tabs': ['15'], 'current_tab': '15', 'current_url': 'https://inspirobot.me/', 'tab2url': {'15': 'https://inspirobot.me/'}}
+        BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[2]/div[1]/div[1]/div[2]/div', 'timeout': 30, 'tab_id': '15', 'url': 'https://inspirobot.me/'}
+        BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[2]/div[1]/div[1]/div[2]/div', 'timeout': 30, 'tab_id': '15', 'url': 'https://inspirobot.me/', 'element_text': 'Generate', 'href': None}
+        BrowserEvents.WAIT_FOR_CSS {'css_selector': '.generated-image', 'timeout': 30, 'tab_id': '15', 'url': 'https://inspirobot.me/'}
+        BrowserEvents.CSS_FOUND {'css_selector': '.generated-image', 'timeout': 30, 'tab_id': '15', 'url': 'https://inspirobot.me/', 'element_text': '', 'href': 'https://generated.inspirobot.me/a/5y6LVzrgJW.jpg'}
+        BrowserEvents.BROWSER_CLOSED {'open_tabs': ['15'], 'current_tab': '15', 'current_url': 'https://inspirobot.me/', 'tab2url': {'15': 'https://inspirobot.me/'}}
+       """
