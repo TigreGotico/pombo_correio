@@ -2,12 +2,13 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from os.path import join, dirname
 from tempfile import gettempdir
+from selenium.common.exceptions import NoSuchWindowException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from pybrowser.exceptions import NoSession, ElementNotFound
+from pybrowser.exceptions import NoSession, ElementNotFound, FireFoxCrashed, \
+    InvalidElement, InvalidTabID
 from enum import IntEnum
-from time import sleep
 
 
 class BrowserEvents(IntEnum):
@@ -42,6 +43,7 @@ class PyBrowser:
         self.driver = None
         self.homepage = homepage
         self.event_handlers = {}
+        self.tab_elements = {}
         self.debug = debug
 
     # event handling
@@ -83,24 +85,56 @@ class PyBrowser:
     def current_url(self):
         if not self.driver:
             return None
-        return self.driver.current_url
+        try:
+            return self.driver.current_url
+        except NoSuchWindowException:
+            raise FireFoxCrashed
 
     @property
     def open_tabs(self):
         if not self.driver:
             return []
-        return self.driver.window_handles
+        try:
+            return self.driver.window_handles
+        except NoSuchWindowException:
+            raise FireFoxCrashed
 
     @property
     def current_tab_id(self):
         if not self.driver:
             return None
-        return self.driver.current_window_handle
+        try:
+            return self.driver.current_window_handle
+        except NoSuchWindowException:
+            raise FireFoxCrashed
 
     # element interaction
-    def click_element(self, element, event_data=None):
+    def _validate_element(self, element, idx=0):
         if not element:
             raise ElementNotFound
+        # lookup xpath/css reference
+        if isinstance(element, str):
+            tab_id = self.current_tab_id
+            if tab_id in self.tab_elements:
+                if element in self.tab_elements[tab_id]:
+                    elements = self.tab_elements[tab_id][element]
+                    if len(elements) < idx + 1:
+                        raise InvalidElement
+                    element = elements[idx]
+                else:
+                    raise InvalidElement
+            else:
+                raise InvalidElement
+        return element
+
+    def get_element_attribute(self, element, attr):
+        element = self._validate_element(element)
+        return element.get_attribute(attr)
+
+    def click_element(self, element, event_data=None):
+        element = self._validate_element(element)
+
+        # TODO type check for element and exception
         event_data = event_data or {}
         event_data["element_text"] = element.text
         event_data["tab_id"] = self.current_tab_id
@@ -110,23 +144,8 @@ class PyBrowser:
         element.click()
         self.handle_event(BrowserEvents.ELEMENT_CLICKED, event_data)
 
-    def click_xpath(self, xpath, timeout=10, wait=True):
-        if wait:
-            element = self.wait_for_xpath(xpath, timeout)
-        else:
-            element = self.get_xpath(xpath)
-        self.click_element(element, {"xpath": xpath})
-
-    def click_css_selector(self, css_selector, timeout=10, wait=True):
-        if wait:
-            element = self.wait_for_css_selector(css_selector, timeout)
-        else:
-            element = self.get_css_selector(css_selector)
-        self.click_element(element, {"css_selector": css_selector})
-
     def send_keys_element(self, keys, element, event_data=None):
-        if not element:
-            raise ElementNotFound
+        element = self._validate_element(element)
         event_data = event_data or {}
         event_data["keys"] = keys
         event_data["element_text"] = element.text
@@ -137,23 +156,8 @@ class PyBrowser:
         element.send_keys(keys)
         self.handle_event(BrowserEvents.ELEMENT_SEND_KEYS, event_data)
 
-    def send_keys_xpath(self, keys, xpath, timeout=10, wait=True):
-        if wait:
-            element = self.wait_for_xpath(xpath, timeout)
-        else:
-            element = self.get_xpath(xpath)
-        self.send_keys_element(keys, element, {"xpath": xpath})
-
-    def send_keys_selector(self, keys, css_selector, timeout=10, wait=True):
-        if wait:
-            element = self.wait_for_css_selector(css_selector, timeout)
-        else:
-            element = self.get_css_selector(css_selector)
-        self.send_keys_element(keys, element, {"css_selector": css_selector})
-
     def submit_element(self, element, event_data=None):
-        if not element:
-            raise ElementNotFound
+        element = self._validate_element(element)
         event_data = event_data or {}
         event_data["element_text"] = element.text
         event_data["tab_id"] = self.current_tab_id
@@ -163,14 +167,44 @@ class PyBrowser:
         element.submit()
         self.handle_event(BrowserEvents.ELEMENT_SUBMIT, event_data)
 
-    def submit_xpath(self, xpath, timeout=10, wait=True):
+    def find_and_click_xpath(self, xpath, timeout=10, wait=True):
+        if wait:
+            element = self.wait_for_xpath(xpath, timeout)
+        else:
+            element = self.get_xpath(xpath)
+        self.click_element(element, {"xpath": xpath})
+
+    def find_and_click_css_selector(self, css_selector, timeout=10, wait=True):
+        if wait:
+            element = self.wait_for_css_selector(css_selector, timeout)
+        else:
+            element = self.get_css_selector(css_selector)
+        self.click_element(element, {"css_selector": css_selector})
+
+    def find_and_send_keys_xpath(self, keys, xpath, timeout=10, wait=True):
+        if wait:
+            element = self.wait_for_xpath(xpath, timeout)
+        else:
+            element = self.get_xpath(xpath)
+        self.send_keys_element(keys, element, {"xpath": xpath})
+
+    def find_and_send_keys_selector(self, keys, css_selector, timeout=10,
+                                    wait=True):
+        if wait:
+            element = self.wait_for_css_selector(css_selector, timeout)
+        else:
+            element = self.get_css_selector(css_selector)
+        self.send_keys_element(keys, element, {"css_selector": css_selector})
+
+    def find_and_submit_xpath(self, xpath, timeout=10, wait=True):
         if wait:
             element = self.wait_for_xpath(xpath, timeout)
         else:
             element = self.get_xpath(xpath)
         self.submit_element(element, {"xpath": xpath})
 
-    def submit_css_selector(self, css_selector, timeout=10, wait=True):
+    def find_and_submit_css_selector(self, css_selector, timeout=10,
+                                     wait=True):
         if wait:
             element = self.wait_for_css_selector(css_selector, timeout)
         else:
@@ -178,6 +212,29 @@ class PyBrowser:
         self.submit_element(element, {"css_selector": css_selector})
 
     # element search
+    def _cache_element(self, element, element_id):
+        if element:
+            if self.current_tab_id not in self.tab_elements:
+                self.tab_elements[self.current_tab_id] = {}
+            if element_id in self.tab_elements[self.current_tab_id]:
+                self.tab_elements[self.current_tab_id][element_id].append(element)
+            else:
+                self.tab_elements[self.current_tab_id][element_id] = [element]
+
+    def search_xpath(self, xpath):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+        for e in self.driver.find_elements_by_xpath(xpath):
+            pass
+
+    def search_css_selector(self, css_selector):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+        for e in self.driver.find_elements_by_css_selector(css_selector):
+            pass
+
     def get_xpath(self, xpath, timeout=10, wait=False):
         if self.driver is None:
             print("[ERROR] please call new_session() first")
@@ -200,6 +257,8 @@ class PyBrowser:
             self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
         else:
             self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
+
+        self._cache_element(element, xpath)
         return element
 
     def get_css_selector(self, css_selector, timeout=10, wait=False):
@@ -221,9 +280,10 @@ class PyBrowser:
             href = element.get_attribute("href") or element.get_attribute(
                 "src")
             event_data["href"] = href
-            self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
+            self.handle_event(BrowserEvents.CSS_FOUND, event_data)
         else:
-            self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
+            self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
+        self._cache_element(element, css_selector)
         return element
 
     def wait_for_xpath(self, xpath, timeout=30):
@@ -253,6 +313,7 @@ class PyBrowser:
         else:
             self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
 
+        self._cache_element(element, xpath)
         return element
 
     def wait_for_css_selector(self, css_selector, timeout=30):
@@ -279,8 +340,17 @@ class PyBrowser:
             self.handle_event(BrowserEvents.CSS_FOUND, event_data)
         else:
             self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
-
+        self._cache_element(element, css_selector)
         return element
+
+    def clear_elements(self, tab_id=None):
+        if tab_id:
+            if tab_id in self.tab_elements:
+                self.tab_elements.pop(tab_id)
+            else:
+                raise InvalidTabID
+        else:
+            self.tab_elements = {}
 
     # browser interaction
     def new_session(self):
@@ -331,6 +401,8 @@ class PyBrowser:
             self.switch_to_tab(tab_id)
             self.driver.close()
 
+        if tab_id in self.tab_elements:
+            self.tab_elements.pop(tab_id)
         event_data = {"open_tabs": self.open_tabs,
                       "current_url": self.current_url,
                       "current_tab": self.current_tab_id,
@@ -354,6 +426,7 @@ class PyBrowser:
         return path
 
     def stop(self):
+        self.clear_elements()
         if self.driver is not None:
             event_data = {"open_tabs": self.open_tabs,
                           "current_tab": self.current_tab_id,

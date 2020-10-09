@@ -10,13 +10,13 @@ class Cleverbot(PyBrowser):
         super().new_session()
         self.utterances = []
         # click accept button
-        self.click_xpath("/html/body/div[1]/div[2]/div[1]/div/div/form/input")
+        self.find_and_click_xpath("/html/body/div[1]/div[2]/div[1]/div/div/form/input")
 
     def ask(self, utterance):
         # submit input
         xpath = "/html/body/div[1]/div[2]/div[3]/form/input[1]"
-        self.send_keys_xpath(utterance, xpath)
-        self.submit_xpath(xpath)
+        self.find_and_send_keys_xpath(utterance, xpath)
+        self.find_and_submit_xpath(xpath)
 
         # wait for response
         share_marker = '//*[@id="snipTextIcon"]'
