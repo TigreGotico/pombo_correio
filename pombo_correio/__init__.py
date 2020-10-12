@@ -6,7 +6,7 @@ from selenium.common.exceptions import NoSuchWindowException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from pybrowser.exceptions import NoSession, ElementNotFound, FireFoxCrashed, \
+from pombo_correio.exceptions import NoSession, ElementNotFound, FireFoxCrashed, \
     InvalidElement, InvalidTabID
 from enum import IntEnum
 

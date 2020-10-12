@@ -1,6 +1,6 @@
 from os.path import join, dirname
 from time import sleep
-from pybrowser import PyBrowser
+from pombo_correio import PyBrowser
 
 exec_path = join(dirname(__file__), "geckodriver")
 # https://github.com/mozilla/geckodriver/releases

@@ -1,4 +1,4 @@
-from pybrowser import PyBrowser
+from pombo_correio import PyBrowser
 
 
 class Inspirobot(PyBrowser):

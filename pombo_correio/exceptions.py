@@ -13,5 +13,6 @@ class FireFoxCrashed(EnvironmentError):
 class InvalidElement(ValueError):
     """ not a valid element object """
 
+
 class InvalidTabID(ValueError):
     """ not a valid tab id """
