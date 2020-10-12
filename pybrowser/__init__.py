@@ -13,23 +13,24 @@ from enum import IntEnum
 
 class BrowserEvents(IntEnum):
     BROWSER_OPEN = 0
-    WEBPAGE_OPEN = 1
-    NEW_TAB = 2
-    SWITCH_TAB = 3
-    SEARCH_CSS = 4
-    SEARCH_XPATH = 5
-    WAIT_FOR_CSS = 6
-    WAIT_FOR_XPATH = 7
-    CSS_FOUND = 8
-    CSS_NOT_FOUND = 9
-    XPATH_FOUND = 10
-    XPATH_NOT_FOUND = 11
-    ELEMENT_CLICKED = 12
-    ELEMENT_SEND_KEYS = 16
-    ELEMENT_SUBMIT = 17
-    TAB_CLOSED = 13
-    BROWSER_CLOSED = 14
-    SCREENSHOT = 15
+    WEBPAGE_OPEN = 10
+    OPEN_URL = 11
+    NEW_TAB = 12
+    SWITCH_TAB = 20
+    TAB_CLOSED = 25
+    SEARCH_CSS = 30
+    SEARCH_XPATH = 31
+    WAIT_FOR_CSS = 40
+    WAIT_FOR_XPATH = 41
+    CSS_FOUND = 50
+    XPATH_FOUND = 51
+    CSS_NOT_FOUND = 60
+    XPATH_NOT_FOUND = 61
+    ELEMENT_CLICKED = 70
+    ELEMENT_SEND_KEYS = 71
+    ELEMENT_SUBMIT = 72
+    SCREENSHOT = 80
+    BROWSER_CLOSED = 100
 
 
 class PyBrowser:
@@ -108,7 +109,7 @@ class PyBrowser:
         except NoSuchWindowException:
             raise FireFoxCrashed
 
-    # element interaction
+    # webpage elements
     def _validate_element(self, element, idx=0):
         if not element:
             raise ElementNotFound
@@ -167,6 +168,197 @@ class PyBrowser:
         element.submit()
         self.handle_event(BrowserEvents.ELEMENT_SUBMIT, event_data)
 
+    def clear_elements(self, tab_id=None):
+        if tab_id:
+            if tab_id in self.tab_elements:
+                self.tab_elements.pop(tab_id)
+            else:
+                raise InvalidTabID
+        else:
+            self.tab_elements = {}
+
+    def _cache_element(self, element, element_id):
+        if element:
+            if self.current_tab_id not in self.tab_elements:
+                self.tab_elements[self.current_tab_id] = {}
+            if element_id in self.tab_elements[self.current_tab_id]:
+                self.tab_elements[self.current_tab_id][element_id].append(
+                    element)
+            else:
+                self.tab_elements[self.current_tab_id][element_id] = [element]
+
+    # element search
+    def search_xpath(self, xpath, source_element=None, filter=None):
+        event_data = {"xpath": xpath,
+                      "tab_id": self.current_tab_id,
+                      "source_element": source_element.id if source_element
+                      else
+                      None,
+                      "url": self.current_url}
+
+        if source_element is None:
+            source_element = self.driver
+        else:
+            source_element = self._validate_element(source_element)
+
+        self.handle_event(BrowserEvents.SEARCH_XPATH, event_data)
+
+        found = False
+        for element in source_element.find_elements_by_xpath(xpath):
+            skip = False
+
+            if not filter:
+                pass
+            elif isinstance(filter, str):
+                # contains attribute
+                if not self.get_element_attribute(element, filter):
+                    skip = True
+            elif isinstance(filter, list):
+                # contains all attributes
+                if not all([self.get_element_attribute(element, f) for f in filter]):
+                    skip = True
+            elif isinstance(filter, dict):
+                for k in filter:
+                    if isinstance(filter[k], str):
+                        # requite attribute value
+                        if self.get_element_attribute(
+                                element, k) != filter[k]:
+                            skip = True
+                    elif isinstance(filter[k], list):
+                        # requite attribute value in value list
+                        if self.get_element_attribute(
+                                element, k) not in filter[k]:
+                            skip = True
+                    else:
+                        raise ValueError
+
+            if skip:
+                continue
+            event_data["element_text"] = element.text
+            href = element.get_attribute("href") or \
+                   element.get_attribute("src")
+            event_data["href"] = href
+            event_data["element_id"] = element.id
+            self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
+
+            self._cache_element(element, xpath)
+            yield element
+            found = True
+
+        if not found:
+            self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
+
+    def search_css(self, css_selector, source_element=None):
+        event_data = {"css_selector": css_selector,
+                      "tab_id": self.current_tab_id,
+                      "source_element": source_element.id if source_element
+                      else
+                      None,
+                      "url": self.current_url}
+
+        if source_element is None:
+            source_element = self.driver
+        else:
+            source_element = self._validate_element(source_element)
+
+        self.handle_event(BrowserEvents.SEARCH_CSS, event_data)
+
+        found = False
+        for element in source_element.find_elements_by_css_selector(
+                css_selector):
+            event_data["element_text"] = element.text
+            href = element.get_attribute("href") or \
+                   element.get_attribute("src")
+            event_data["href"] = href
+            event_data["element_id"] = element.id
+            self.handle_event(BrowserEvents.CSS_FOUND, event_data)
+
+            self._cache_element(element, css_selector)
+            yield element
+            found = True
+
+        if not found:
+            self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
+
+    # element selection
+    def get_xpath(self, xpath, timeout=10, wait=False):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+        if wait:
+            return self.wait_for_xpath(xpath, timeout)
+        for elem in self.search_xpath(xpath):
+            return elem
+
+    def get_css_selector(self, css_selector, timeout=10, wait=False):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+        if wait:
+            return self.wait_for_css_selector(css_selector, timeout)
+        for element in self.search_css(css_selector):
+            return element
+
+    def wait_for_xpath(self, xpath, timeout=30):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+
+        event_data = {"xpath": xpath,
+                      "timeout": timeout,
+                      "tab_id": self.current_tab_id,
+                      "url": self.current_url}
+        self.handle_event(BrowserEvents.WAIT_FOR_XPATH, event_data)
+
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                ec.visibility_of_element_located(
+                    (By.XPATH, xpath)))
+        except Exception as e:
+            element = None
+
+        if element:
+            event_data["element_text"] = element.text
+            href = element.get_attribute("href") or element.get_attribute(
+                "src")
+            event_data["href"] = href
+            event_data["element_id"] = element.id
+            self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
+        else:
+            self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
+
+        self._cache_element(element, xpath)
+        return element
+
+    def wait_for_css_selector(self, css_selector, timeout=30):
+        if self.driver is None:
+            print("[ERROR] please call new_session() first")
+            raise NoSession
+
+        event_data = {"css_selector": css_selector, "timeout": timeout,
+                      "tab_id": self.current_tab_id, "url": self.current_url}
+        self.handle_event(BrowserEvents.WAIT_FOR_CSS, event_data)
+
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                ec.visibility_of_element_located(
+                    (By.CSS_SELECTOR, css_selector)))
+        except Exception as e:
+            element = None
+
+        if element:
+            event_data["element_text"] = element.text
+            href = element.get_attribute("href") or element.get_attribute(
+                "src")
+            event_data["href"] = href
+            event_data["element_id"] = element.id
+            self.handle_event(BrowserEvents.CSS_FOUND, event_data)
+        else:
+            self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
+        self._cache_element(element, css_selector)
+        return element
+
+    # action chains
     def find_and_click_xpath(self, xpath, timeout=10, wait=True):
         if wait:
             element = self.wait_for_xpath(xpath, timeout)
@@ -211,147 +403,6 @@ class PyBrowser:
             element = self.get_css_selector(css_selector)
         self.submit_element(element, {"css_selector": css_selector})
 
-    # element search
-    def _cache_element(self, element, element_id):
-        if element:
-            if self.current_tab_id not in self.tab_elements:
-                self.tab_elements[self.current_tab_id] = {}
-            if element_id in self.tab_elements[self.current_tab_id]:
-                self.tab_elements[self.current_tab_id][element_id].append(element)
-            else:
-                self.tab_elements[self.current_tab_id][element_id] = [element]
-
-    def search_xpath(self, xpath):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-        for e in self.driver.find_elements_by_xpath(xpath):
-            pass
-
-    def search_css_selector(self, css_selector):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-        for e in self.driver.find_elements_by_css_selector(css_selector):
-            pass
-
-    def get_xpath(self, xpath, timeout=10, wait=False):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-        if wait:
-            return self.wait_for_xpath(xpath, timeout)
-
-        event_data = {"xpath": xpath,
-                      "tab_id": self.current_tab_id,
-                      "url": self.current_url}
-        self.handle_event(BrowserEvents.SEARCH_XPATH, event_data)
-
-        element = self.driver.find_element_by_xpath(xpath)
-
-        if element:
-            event_data["element_text"] = element.text
-            href = element.get_attribute("href") or element.get_attribute(
-                "src")
-            event_data["href"] = href
-            self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
-        else:
-            self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
-
-        self._cache_element(element, xpath)
-        return element
-
-    def get_css_selector(self, css_selector, timeout=10, wait=False):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-        if wait:
-            return self.wait_for_css_selector(css_selector, timeout)
-
-        event_data = {"css_selector": css_selector,
-                      "tab_id": self.current_tab_id,
-                      "url": self.current_url}
-        self.handle_event(BrowserEvents.SEARCH_CSS, event_data)
-
-        element = self.driver.find_element_by_css_selector(css_selector)
-
-        if element:
-            event_data["element_text"] = element.text
-            href = element.get_attribute("href") or element.get_attribute(
-                "src")
-            event_data["href"] = href
-            self.handle_event(BrowserEvents.CSS_FOUND, event_data)
-        else:
-            self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
-        self._cache_element(element, css_selector)
-        return element
-
-    def wait_for_xpath(self, xpath, timeout=30):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-
-        event_data = {"xpath": xpath,
-                      "timeout": timeout,
-                      "tab_id": self.current_tab_id,
-                      "url": self.current_url}
-        self.handle_event(BrowserEvents.WAIT_FOR_XPATH, event_data)
-
-        try:
-            element = WebDriverWait(self.driver, timeout).until(
-                ec.visibility_of_element_located(
-                    (By.XPATH, xpath)))
-        except Exception as e:
-            element = None
-
-        if element:
-            event_data["element_text"] = element.text
-            href = element.get_attribute("href") or element.get_attribute(
-                "src")
-            event_data["href"] = href
-            self.handle_event(BrowserEvents.XPATH_FOUND, event_data)
-        else:
-            self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
-
-        self._cache_element(element, xpath)
-        return element
-
-    def wait_for_css_selector(self, css_selector, timeout=30):
-        if self.driver is None:
-            print("[ERROR] please call new_session() first")
-            raise NoSession
-
-        event_data = {"css_selector": css_selector, "timeout": timeout,
-                      "tab_id": self.current_tab_id, "url": self.current_url}
-        self.handle_event(BrowserEvents.WAIT_FOR_CSS, event_data)
-
-        try:
-            element = WebDriverWait(self.driver, timeout).until(
-                ec.visibility_of_element_located(
-                    (By.CSS_SELECTOR, css_selector)))
-        except Exception as e:
-            element = None
-
-        if element:
-            event_data["element_text"] = element.text
-            href = element.get_attribute("href") or element.get_attribute(
-                "src")
-            event_data["href"] = href
-            self.handle_event(BrowserEvents.CSS_FOUND, event_data)
-        else:
-            self.handle_event(BrowserEvents.CSS_NOT_FOUND, event_data)
-        self._cache_element(element, css_selector)
-        return element
-
-    def clear_elements(self, tab_id=None):
-        if tab_id:
-            if tab_id in self.tab_elements:
-                self.tab_elements.pop(tab_id)
-            else:
-                raise InvalidTabID
-        else:
-            self.tab_elements = {}
-
     # browser interaction
     def new_session(self):
         self.stop()
@@ -363,7 +414,7 @@ class PyBrowser:
 
         self.driver.get(self.homepage)
         event_data = {"open_tabs": self.open_tabs,
-                      "current_tab": self.current_tab_id,
+                      "tab_id": self.current_tab_id,
                       "current_url": self.current_url,
                       "tab2url": self.tab2url}
         self.handle_event(BrowserEvents.BROWSER_OPEN, event_data)
@@ -387,9 +438,20 @@ class PyBrowser:
         event_data = {"open_tabs": self.open_tabs,
                       "old_tab": self.current_tab_id,
                       "old_url": self.current_url,
-                      "current_tab": tab_id}
+                      "tab_id": tab_id}
         self.driver.switch_to.window(window_name=tab_id)
         self.handle_event(BrowserEvents.SWITCH_TAB, event_data)
+
+    def got_to_url(self, url, tab_id=None):
+        if tab_id:
+            self.switch_to_tab(tab_id)
+        else:
+            tab_id = self.current_tab_id
+        event_data = {"url": url,
+                      "old_url": self.current_url,
+                      "tab_id": tab_id}
+        self.driver.get(url)
+        self.handle_event(BrowserEvents.OPEN_URL, event_data)
 
     def close_tab(self, tab_id=None):
 
@@ -405,7 +467,7 @@ class PyBrowser:
             self.tab_elements.pop(tab_id)
         event_data = {"open_tabs": self.open_tabs,
                       "current_url": self.current_url,
-                      "current_tab": self.current_tab_id,
+                      "tab_id": self.current_tab_id,
                       "closed_tab": tab_id,
                       "tab2url": self.tab2url}
 
@@ -429,7 +491,7 @@ class PyBrowser:
         self.clear_elements()
         if self.driver is not None:
             event_data = {"open_tabs": self.open_tabs,
-                          "current_tab": self.current_tab_id,
+                          "tab_id": self.current_tab_id,
                           "current_url": self.current_url,
                           "tab2url": self.tab2url}
 
