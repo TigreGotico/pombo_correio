@@ -6,7 +6,8 @@ from selenium.common.exceptions import NoSuchWindowException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from pombo_correio.exceptions import NoSession, ElementNotFound, FireFoxCrashed, \
+from pombo_correio.exceptions import NoSession, ElementNotFound, \
+    FireFoxCrashed, \
     InvalidElement, InvalidTabID
 from enum import IntEnum
 
@@ -191,9 +192,9 @@ class PyBrowser:
     def search_xpath(self, xpath, source_element=None, filter=None):
         event_data = {"xpath": xpath,
                       "tab_id": self.current_tab_id,
-                      "source_element": source_element.id if source_element
-                      else
-                      None,
+                      "source_element": source_element.id if
+                      source_element else None,
+                      "filter": filter,
                       "url": self.current_url}
 
         if source_element is None:
@@ -215,7 +216,8 @@ class PyBrowser:
                     skip = True
             elif isinstance(filter, list):
                 # contains all attributes
-                if not all([self.get_element_attribute(element, f) for f in filter]):
+                if not all([self.get_element_attribute(element, f) for f in
+                            filter]):
                     skip = True
             elif isinstance(filter, dict):
                 for k in filter:
@@ -248,12 +250,12 @@ class PyBrowser:
         if not found:
             self.handle_event(BrowserEvents.XPATH_NOT_FOUND, event_data)
 
-    def search_css(self, css_selector, source_element=None):
+    def search_css(self, css_selector, source_element=None, filter=None):
         event_data = {"css_selector": css_selector,
                       "tab_id": self.current_tab_id,
-                      "source_element": source_element.id if source_element
-                      else
-                      None,
+                      "source_element": source_element.id if
+                      source_element else None,
+                      "filter": filter,
                       "url": self.current_url}
 
         if source_element is None:
@@ -266,6 +268,36 @@ class PyBrowser:
         found = False
         for element in source_element.find_elements_by_css_selector(
                 css_selector):
+            skip = False
+
+            if not filter:
+                pass
+            elif isinstance(filter, str):
+                # contains attribute
+                if not self.get_element_attribute(element, filter):
+                    skip = True
+            elif isinstance(filter, list):
+                # contains all attributes
+                if not all([self.get_element_attribute(element, f) for f in
+                            filter]):
+                    skip = True
+            elif isinstance(filter, dict):
+                for k in filter:
+                    if isinstance(filter[k], str):
+                        # requite attribute value
+                        if self.get_element_attribute(
+                                element, k) != filter[k]:
+                            skip = True
+                    elif isinstance(filter[k], list):
+                        # requite attribute value in value list
+                        if self.get_element_attribute(
+                                element, k) not in filter[k]:
+                            skip = True
+                    else:
+                        raise ValueError
+
+            if skip:
+                continue
             event_data["element_text"] = element.text
             href = element.get_attribute("href") or \
                    element.get_attribute("src")
