@@ -51,7 +51,7 @@ class PyBrowser:
         self.options = Options()
         if headless:
             self.options.headless = True
-        self.driver = None
+        self._driver = None
         self.homepage = homepage
         self.event_handlers = {}
         self.tab_elements = {}
@@ -78,7 +78,7 @@ class PyBrowser:
 
     # browser properties
     def _sync_tab2url(self):
-        if not self.driver:
+        if not self._driver:
             return self._tab2url
         current = self.current_tab_id
         switched = False
@@ -101,28 +101,28 @@ class PyBrowser:
 
     @property
     def current_url(self):
-        if not self.driver:
+        if not self._driver:
             return None
         try:
-            return self.driver.current_url
+            return self._driver.current_url
         except NoSuchWindowException:
             raise TabDiscarded
 
     @property
     def open_tabs(self):
-        if not self.driver:
+        if not self._driver:
             return []
         try:
-            return self.driver.window_handles
+            return self._driver.window_handles
         except NoSuchWindowException:
             raise TabDiscarded
 
     @property
     def current_tab_id(self):
-        if not self.driver:
+        if not self._driver:
             return None
         try:
-            return self.driver.current_window_handle
+            return self._driver.current_window_handle
         except NoSuchWindowException:
             raise TabDiscarded
 
@@ -212,7 +212,7 @@ class PyBrowser:
                       "url": self.current_url}
 
         if source_element is None:
-            source_element = self.driver
+            source_element = self._driver
         else:
             source_element = self._validate_element(source_element)
             event_data["source_element"] = source_element.id
@@ -272,7 +272,7 @@ class PyBrowser:
                       "url": self.current_url}
 
         if source_element is None:
-            source_element = self.driver
+            source_element = self._driver
         else:
             source_element = self._validate_element(source_element)
             event_data["source_element"] = source_element.id
@@ -328,7 +328,7 @@ class PyBrowser:
 
     # element selection
     def get_xpath(self, xpath, timeout=10, wait=False):
-        if self.driver is None:
+        if self._driver is None:
             print("[ERROR] please call new_session() first")
             raise NoSession
         if wait:
@@ -337,7 +337,7 @@ class PyBrowser:
             return elem
 
     def get_css_selector(self, css_selector, timeout=10, wait=False):
-        if self.driver is None:
+        if self._driver is None:
             print("[ERROR] please call new_session() first")
             raise NoSession
         if wait:
@@ -346,7 +346,7 @@ class PyBrowser:
             return element
 
     def wait_for_xpath(self, xpath, timeout=30):
-        if self.driver is None:
+        if self._driver is None:
             print("[ERROR] please call new_session() first")
             raise NoSession
 
@@ -357,7 +357,7 @@ class PyBrowser:
         self.handle_event(BrowserEvents.WAIT_FOR_XPATH, event_data)
 
         try:
-            element = WebDriverWait(self.driver, timeout).until(
+            element = WebDriverWait(self._driver, timeout).until(
                 ec.visibility_of_element_located(
                     (By.XPATH, xpath)))
         except Exception as e:
@@ -377,7 +377,7 @@ class PyBrowser:
         return element
 
     def wait_for_css_selector(self, css_selector, timeout=30):
-        if self.driver is None:
+        if self._driver is None:
             print("[ERROR] please call new_session() first")
             raise NoSession
 
@@ -386,7 +386,7 @@ class PyBrowser:
         self.handle_event(BrowserEvents.WAIT_FOR_CSS, event_data)
 
         try:
-            element = WebDriverWait(self.driver, timeout).until(
+            element = WebDriverWait(self._driver, timeout).until(
                 ec.visibility_of_element_located(
                     (By.CSS_SELECTOR, css_selector)))
         except Exception as e:
@@ -452,12 +452,12 @@ class PyBrowser:
     # browser interaction
     def scroll_down(self, times=1):
         # move to bottom
-        element = self.driver.find_element_by_tag_name('body')
+        element = self._driver.find_element_by_tag_name('body')
         keys = [Keys.ARROW_DOWN] * times
         self.send_keys_element(keys, element)
 
     def create_driver(self):
-        if self.driver is None:
+        if self._driver is None:
             raise DriverNotSet
 
     def new_session(self):
@@ -466,9 +466,9 @@ class PyBrowser:
 
         extensions = self.load_extensions()
 
-        self.driver.get(self.homepage)
+        self._driver.get(self.homepage)
 
-        self.driver.maximize_window()
+        self._driver.maximize_window()
         sleep(2)
         event_data = {"open_tabs": self.open_tabs,
                       "tab_id": self.current_tab_id,
@@ -483,7 +483,7 @@ class PyBrowser:
         pass
 
     def open_new_tab(self, url, switch=True):
-        self.driver.execute_script(
+        self._driver.execute_script(
             '''window.open("{url}","_blank");'''.format(url=url))
         tab = self.open_tabs[-1]
 
@@ -498,13 +498,13 @@ class PyBrowser:
         return tab
 
     def switch_to_tab(self, tab_id):
-        if not self.driver:
+        if not self._driver:
             raise NoSession
         event_data = {"open_tabs": self.open_tabs,
                       "old_tab": self.current_tab_id,
                       "old_url": self.current_url,
                       "tab_id": tab_id}
-        self.driver.switch_to.window(window_name=tab_id)
+        self._driver.switch_to.window(window_name=tab_id)
         self.handle_event(BrowserEvents.SWITCH_TAB, event_data)
 
     def got_to_url(self, url, tab_id=None):
@@ -515,7 +515,7 @@ class PyBrowser:
         event_data = {"url": url,
                       "old_url": self.current_url,
                       "tab_id": tab_id}
-        self.driver.get(url)
+        self._driver.get(url)
         self.handle_event(BrowserEvents.OPEN_URL, event_data)
         self._sync_tab2url()
 
@@ -523,11 +523,11 @@ class PyBrowser:
 
         if not tab_id:
             # close the active tab
-            self.driver.close()
+            self._driver.close()
             tab_id = self.current_tab_id
         else:
             self.switch_to_tab(tab_id)
-            self.driver.close()
+            self._driver.close()
 
         if tab_id in self.tab_elements:
             self.tab_elements.pop(tab_id)
@@ -543,7 +543,7 @@ class PyBrowser:
 
     def save_screenshot(self, path=None):
         path = path or join(gettempdir(), "pybrowser_screenshot.png")
-        self.driver.save_screenshot(path)
+        self._driver.save_screenshot(path)
 
         event_data = {"image": path,
                       "tab_id": self.current_tab_id,
@@ -554,16 +554,16 @@ class PyBrowser:
 
     def stop(self):
         self.clear_elements()
-        if self.driver is not None:
+        if self._driver is not None:
             event_data = {"open_tabs": self.open_tabs,
                           "tab_id": self.current_tab_id,
                           "current_url": self.current_url,
                           "tab2url": self.tab2url}
 
-            self.driver.quit()
+            self._driver.quit()
 
             self.handle_event(BrowserEvents.BROWSER_CLOSED, event_data)
-        self.driver = None
+        self._driver = None
         self._tab2url = {}
 
     # context manager
