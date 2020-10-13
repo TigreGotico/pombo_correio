@@ -15,6 +15,7 @@ from pombo_correio.exceptions import NoSession, ElementNotFound, \
 from enum import IntEnum
 from xdg import XDG_DATA_HOME
 import json
+from time import sleep
 from pombo_correio.utils import Keys
 
 
@@ -54,6 +55,7 @@ class PyBrowser:
         self.homepage = homepage
         self.event_handlers = {}
         self.tab_elements = {}
+        self._tab2url = {}
         self.debug = debug
 
     # event handling
@@ -75,21 +77,27 @@ class PyBrowser:
                 print(str(e))
 
     # browser properties
-    @property
-    def tab2url(self):
-        tab2url = {}
+    def _sync_tab2url(self):
         if not self.driver:
-            return tab2url
+            return self._tab2url
         current = self.current_tab_id
         switched = False
+        self._tab2url = {}
         for tab in self.open_tabs:
-            if tab != current:
-                switched = True
-                self.switch_to_tab(tab)
-            tab2url[tab] = self.current_url
+            try:
+                if tab != current:
+                    switched = True
+                    self.switch_to_tab(tab)
+                self._tab2url[tab] = self.current_url
+            except:
+                pass
         if switched:
             self.switch_to_tab(current)
-        return tab2url
+        return self._tab2url
+
+    @property
+    def tab2url(self):
+        return self._tab2url
 
     @property
     def current_url(self):
@@ -461,14 +469,18 @@ class PyBrowser:
         self.driver.get(self.homepage)
 
         self.driver.maximize_window()
+        sleep(2)
         event_data = {"open_tabs": self.open_tabs,
                       "tab_id": self.current_tab_id,
-                      "current_url": self.current_url,
-                      "tab2url": self.tab2url}
+                      "homepage": self.homepage}
         self.handle_event(BrowserEvents.BROWSER_OPEN, event_data)
+        self._sync_tab2url()
 
     def load_extensions(self):
         return []
+
+    def close_extensions_tabs(self):
+        pass
 
     def open_new_tab(self, url, switch=True):
         self.driver.execute_script(
@@ -481,6 +493,8 @@ class PyBrowser:
 
         if switch:
             self.switch_to_tab(tab)
+
+        self._sync_tab2url()
         return tab
 
     def switch_to_tab(self, tab_id):
@@ -503,6 +517,7 @@ class PyBrowser:
                       "tab_id": tab_id}
         self.driver.get(url)
         self.handle_event(BrowserEvents.OPEN_URL, event_data)
+        self._sync_tab2url()
 
     def close_tab(self, tab_id=None):
 
@@ -524,8 +539,7 @@ class PyBrowser:
 
         self.handle_event(BrowserEvents.TAB_CLOSED, event_data)
 
-        if not len(self.open_tabs):
-            self.stop()
+        self._sync_tab2url()
 
     def save_screenshot(self, path=None):
         path = path or join(gettempdir(), "pybrowser_screenshot.png")
@@ -550,6 +564,7 @@ class PyBrowser:
 
             self.handle_event(BrowserEvents.BROWSER_CLOSED, event_data)
         self.driver = None
+        self._tab2url = {}
 
     # context manager
     def __enter__(self):
@@ -640,6 +655,24 @@ class FirefoxBrowser(PyBrowser):
             self.handle_event(BrowserEvents.EXTENSIONS_ALL_LOADED, event_data)
             return extensions
         return []
+
+    def close_extensions_tabs(self):
+        self._sync_tab2url()
+        for tab in self.tab2url:
+            if self.tab2url[tab].startswith("moz-extension://"):
+                self.close_tab(tab)
+
+
+class PrivacyFoxBrowser(FirefoxBrowser):
+    def __init__(self, geckodriver=None, headless=False,
+                 homepage="https://liberapay.com/jarbasAI/",
+                 debug=True, binary=None, prefs_js=None,
+                 extensions_folder=None):
+        prefs_js = prefs_js or join(dirname(__file__), "res", "prefs.js")
+        extensions_folder = extensions_folder or \
+                            join(dirname(__file__), "res", "extensions")
+        super().__init__(geckodriver, headless, homepage, debug, binary,
+                         prefs_js, extensions_folder)
 
 
 class TorBrowser(FirefoxBrowser):
