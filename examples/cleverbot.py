@@ -29,71 +29,117 @@ class Cleverbot(FirefoxBrowser):
 if __name__ == "__main__":
     from os.path import join, dirname
 
-    exec_path = join(dirname(__file__), "geckodriver")
+    geckodriver = join(dirname(__file__), "geckodriver")
     # https://github.com/mozilla/geckodriver/releases
 
     # Using context manager
-    with Cleverbot(exec_path) as bot:
+    with Cleverbot(geckodriver) as bot:
         answer = bot.ask("hello")
-        print(answer)
         answer = bot.ask("are you a bot")
-        print(answer)
         answer = bot.ask("what is love")
-        print(answer)
         answer = bot.ask("are you stupid")
-        print(answer)
         answer = bot.ask("are you alive")
-        print(answer)
         answer = bot.ask("does god exist")
-        print(answer)
         answer = bot.ask("who created evil")
-        print(answer)
         answer = bot.ask("are you religious")
-        print(answer)
         answer = bot.ask("what is your favorite food")
-        print(answer)
-
-        path = bot.save_screenshot()
-        print(path)
+        path = bot.save_screenshot("cleverbot.png")
         print(bot.utterances)
     """
-   BrowserEvents.BROWSER_OPEN {'open_tabs': ['15'], 'tab_id': '15', 'current_url': 'https://www.cleverbot.com/', 'tab2url': {'15': 'https://www.cleverbot.com/'}}
+BrowserEvents.BROWSER_OPEN {'open_tabs': ['15'], 'tab_id': '15', 'homepage': 'https://www.cleverbot.com/'}
 BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
-BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '1cf6a574-e314-4adc-8dc6-4206d4fd6a56'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '390ee818-5241-4cfd-b3d7-9c33a0b5ce0a'}
 BrowserEvents.ELEMENT_CLICKED {'xpath': '/html/body/div[1]/div[2]/div[1]/div/div/form/input', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
 BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
-BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '434c3fa1-e945-48ac-b7cf-623249bd7295'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
 BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'hello', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
 BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
-BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '434c3fa1-e945-48ac-b7cf-623249bd7295'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
 BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
 BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
-BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '5c23bd63-56ca-432c-8a6a-4009523990d4'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': 'a92aca2c-0f9e-4fe7-afef-9aa514a087d6'}
 BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
-BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'How is it going?', 'href': None, 'element_id': 'df2ff9ce-1132-4a88-a873-13d1bf43764f'}
-   """
-
-    # Manual session handling
-    bot = Cleverbot(exec_path)
-    try:
-        bot.new_session()
-        bot.ask("hello")
-        bot.ask("hello")
-        bot.ask("hello")
-        bot.ask("hello")
-        print(bot.utterances)
-
-        bot.save_screenshot("sess1.png")
-
-        bot.new_session()
-
-        bot.ask("hello")
-        bot.ask("hello")
-        print(bot.utterances)
-
-        bot.save_screenshot("sess2.png")
-    except Exception as e: # timeout and such
-        print(e)
-
-    # ensure stop is called or a firefox process will be left running!
-    bot.stop()
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'How are you?', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'are you a bot', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '883a0f52-b4ab-4277-be34-22ac2df2c4fb'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': "No. I'm a human.", 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'what is love', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '42e40996-ea2c-4f65-936c-6d58a5fd743e'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'Love is a feeling that comes when you meet someone.', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'are you stupid', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '5cc6e355-99f6-4008-8ece-6e34b81b42c0'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'No. Make a friends:).', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'are you alive', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': 'e4565759-6ce5-4f69-8640-c705d480127d'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'Of course.', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'does god exist', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '1fc1ec17-055f-47aa-a426-52d067ca2bae'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'Yes He does.', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'who created evil', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': 'b9ad6dd6-65d9-4836-a34e-a06bedfb1163'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'Whoever created the earth.', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'are you religious', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '83389449-f605-46a5-92ae-038cf0724e4a'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': 'Yes a little.', 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SEND_KEYS {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'keys': 'what is your favorite food', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'timeout': 10, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': '', 'element_id': '69253a15-867b-43d6-b463-d18ad99369e8'}
+BrowserEvents.ELEMENT_SUBMIT {'xpath': '/html/body/div[1]/div[2]/div[3]/form/input[1]', 'element_text': '', 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'href': ''}
+BrowserEvents.WAIT_FOR_XPATH {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '//*[@id="snipTextIcon"]', 'timeout': 30, 'tab_id': '15', 'url': 'https://www.cleverbot.com/', 'element_text': '', 'href': None, 'element_id': '454906ec-1556-4aa7-a1f4-a65713c5495f'}
+BrowserEvents.SEARCH_XPATH {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.XPATH_FOUND {'xpath': '/html/body/div[1]/div[2]/div[3]/p[9]/span[1]', 'tab_id': '15', 'filter': None, 'url': 'https://www.cleverbot.com/', 'element_text': "I don't really have one...", 'href': None, 'element_id': '2cf2de4b-9688-460f-8e48-6b260425cab0'}
+BrowserEvents.SCREENSHOT {'image': 'cleverbot.png', 'tab_id': '15', 'url': 'https://www.cleverbot.com/'}
+BrowserEvents.BROWSER_CLOSED {'open_tabs': ['15'], 'tab_id': '15', 'current_url': 'https://www.cleverbot.com/', 'tab2url': {'15': 'https://www.cleverbot.com/'}}
+  """
