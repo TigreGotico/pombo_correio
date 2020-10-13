@@ -744,9 +744,3 @@ class TorBrowser(FirefoxBrowser):
 
     def create_firefox_profile(self):
         return self.create_tor_profile()
-
-    def relay_data_screenshot(self, path="tor_relay.png"):
-        self.got_to_url("https://check.torproject.org/")
-        self.find_and_click_xpath("/html/body/div[2]/p[2]/a[2]")
-        self.wait_for_xpath("/html/body/div/div[4]/div[2]/h2/span")
-        self.save_screenshot(path)
