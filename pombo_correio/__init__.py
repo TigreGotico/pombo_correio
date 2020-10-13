@@ -632,12 +632,12 @@ class FirefoxBrowser(PyBrowser):
 
     def create_driver(self):
         if self.geckodriver:
-            self.driver = webdriver.Firefox(
+            self._driver = webdriver.Firefox(
                 executable_path=self.geckodriver,
                 firefox_profile=self.firefox_profile,
                 options=self.options)
         else:
-            self.driver = webdriver.Firefox(
+            self._driver = webdriver.Firefox(
                 firefox_profile=self.firefox_profile,
                 options=self.options)
 
@@ -645,7 +645,7 @@ class FirefoxBrowser(PyBrowser):
         if self.extensions_folder and exists(self.extensions_folder):
             extensions = os.listdir(self.extensions_folder)
             for extension in extensions:
-                self.driver.install_addon(
+                self._driver.install_addon(
                     join(self.extensions_folder, extension), temporary=True)
                 event_data = {"extension": extension}
                 self.handle_event(BrowserEvents.EXTENSION_LOADED,
@@ -677,7 +677,7 @@ class PrivacyFoxBrowser(FirefoxBrowser):
 
 class TorBrowser(FirefoxBrowser):
     def __init__(self, geckodriver=None, headless=False,
-                 homepage="https://check.torproject.org/",
+                 homepage="https://torproject.org/",
                  debug=True, binary=None, prefs_js=None,
                  extensions_folder=None, torrc='/etc/tor/',
                  js_enabled=False, images_enabled=True):
@@ -744,3 +744,9 @@ class TorBrowser(FirefoxBrowser):
 
     def create_firefox_profile(self):
         return self.create_tor_profile()
+
+    def relay_data_screenshot(self, path="tor_relay.png"):
+        self.got_to_url("https://check.torproject.org/")
+        self.find_and_click_xpath("/html/body/div[2]/p[2]/a[2]")
+        self.wait_for_xpath("/html/body/div/div[4]/div[2]/h2/span")
+        self.save_screenshot(path)
