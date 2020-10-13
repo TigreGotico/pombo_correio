@@ -11,7 +11,7 @@ if __name__ == "__main__":
     with TorBrowser(gecko_driver,
                     headless=True,
                     js_enabled=False,
-                    tor_ff_binary=binary) as browser:
+                    binary=binary) as browser:
         url = browser.find_and_click_xpath("/html/body/div[2]/p[2]/a[2]")
         browser.wait_for_xpath("/html/body/div/div[4]/div[2]/h2/span")
         browser.save_screenshot("tor_relay.png")

@@ -1,3 +1,4 @@
+from selenium.webdriver.common.keys import Keys
 
 
 def download_geckodriver():

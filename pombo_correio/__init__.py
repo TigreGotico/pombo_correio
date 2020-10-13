@@ -10,13 +10,19 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from pombo_correio.exceptions import NoSession, ElementNotFound, \
-    FireFoxCrashed, InvalidElement, InvalidTabID, TorNotFound
+    FireFoxCrashed, InvalidElement, InvalidTabID, TorNotFound, DriverNotSet, \
+    PreferencesFileNotFound, PreferencesParseError, TabDiscarded
 from enum import IntEnum
 from xdg import XDG_DATA_HOME
+import json
+from pombo_correio.utils import Keys
 
 
 class BrowserEvents(IntEnum):
     BROWSER_OPEN = 0
+    WARMING_UP = 1
+    EXTENSION_LOADED = 2
+    EXTENSIONS_ALL_LOADED = 3
     WEBPAGE_OPEN = 10
     OPEN_URL = 11
     NEW_TAB = 12
@@ -38,13 +44,12 @@ class BrowserEvents(IntEnum):
 
 
 class PyBrowser:
-    def __init__(self, exec_path=None, headless=False,
+    def __init__(self, headless=False,
                  homepage="https://liberapay.com/jarbasAI/",
                  debug=True):
         self.options = Options()
         if headless:
             self.options.headless = True
-        self.exec_path = exec_path
         self.driver = None
         self.homepage = homepage
         self.event_handlers = {}
@@ -93,7 +98,7 @@ class PyBrowser:
         try:
             return self.driver.current_url
         except NoSuchWindowException:
-            raise FireFoxCrashed
+            raise TabDiscarded
 
     @property
     def open_tabs(self):
@@ -102,7 +107,7 @@ class PyBrowser:
         try:
             return self.driver.window_handles
         except NoSuchWindowException:
-            raise FireFoxCrashed
+            raise TabDiscarded
 
     @property
     def current_tab_id(self):
@@ -111,7 +116,7 @@ class PyBrowser:
         try:
             return self.driver.current_window_handle
         except NoSuchWindowException:
-            raise FireFoxCrashed
+            raise TabDiscarded
 
     # webpage elements
     def _validate_element(self, element, idx=0):
@@ -437,20 +442,33 @@ class PyBrowser:
         self.submit_element(element, {"css_selector": css_selector})
 
     # browser interaction
+    def scroll_down(self, times=1):
+        # move to bottom
+        element = self.driver.find_element_by_tag_name('body')
+        keys = [Keys.ARROW_DOWN] * times
+        self.send_keys_element(keys, element)
+
+    def create_driver(self):
+        if self.driver is None:
+            raise DriverNotSet
+
     def new_session(self):
         self.stop()
-        if self.exec_path:
-            self.driver = webdriver.Firefox(executable_path=self.exec_path,
-                                            options=self.options)
-        else:
-            self.driver = webdriver.Firefox(options=self.options)
+        self.create_driver()
+
+        extensions = self.load_extensions()
 
         self.driver.get(self.homepage)
+
+        self.driver.maximize_window()
         event_data = {"open_tabs": self.open_tabs,
                       "tab_id": self.current_tab_id,
                       "current_url": self.current_url,
                       "tab2url": self.tab2url}
         self.handle_event(BrowserEvents.BROWSER_OPEN, event_data)
+
+    def load_extensions(self):
+        return []
 
     def open_new_tab(self, url, switch=True):
         self.driver.execute_script(
@@ -542,25 +560,110 @@ class PyBrowser:
         self.stop()
 
 
-class TorBrowser(PyBrowser):
-    def __init__(self, exec_path=None, headless=False,
-                 homepage="https://check.torproject.org/",
-                 debug=True, torrc='/etc/tor/', tor_ff_binary=None,
-                 js_enabled=False, images_enabled=True):
-        super().__init__(exec_path, headless, homepage, debug)
-        self.torrc = torrc
-        if not tor_ff_binary:
-            tor_ff_binary = self.find_tor_browser()
-            if not len(tor_ff_binary):
-                raise TorNotFound
-            tor_ff_binary = tor_ff_binary[0]
+class FirefoxBrowser(PyBrowser):
+    def __init__(self, geckodriver=None, headless=False,
+                 homepage="https://liberapay.com/jarbasAI/",
+                 debug=True, binary=None, prefs_js=None,
+                 extensions_folder=None):
+        super().__init__(headless, homepage, debug)
+        self.geckodriver = geckodriver
+        if binary:
+            self.firefox_binary = FirefoxBinary(binary)
+        else:
+            self.firefox_binary = None
 
-        if not exists(tor_ff_binary):
-            raise TorNotFound
+        if prefs_js:
+            self.preferences = self.parse_prefsjs(prefs_js)
+        else:
+            self.preferences = {}
+
+        self.firefox_profile = self.create_firefox_profile()
+        self.extensions_folder = extensions_folder
+
+    @staticmethod
+    def find_firefox():
+        """ look for firefox binary """
+        paths = ["/usr/bin/firefox"]
+        binaries = []
+        for p in paths:
+            if exists(p):
+                binaries.append(p)
+        return binaries
+
+    @staticmethod
+    def parse_prefsjs(path):
+        if not exists(path):
+            raise PreferencesFileNotFound
+        with open(path) as f:
+            json_str = "{\n"
+            for p in f.read().split("\n"):
+                try:
+                    if not p.strip() or p.startswith("//"):
+                        continue
+                    k, val = p.split('user_pref("')[1].split('", ')
+                    val = val.split(");")[0]
+                    json_str += '"{key}": {val},'.format(key=k, val=val)
+                except:
+                    raise PreferencesParseError
+            json_str = json_str[:-1] + "\n}"
+            prefs = json.loads(json_str)
+        return prefs
+
+    def create_firefox_profile(self):
+        profile = FirefoxProfile()
+        for pref in self.preferences:
+            profile.set_preference(pref, self.preferences[pref])
+        return profile
+
+    def create_driver(self):
+        if self.geckodriver:
+            self.driver = webdriver.Firefox(
+                executable_path=self.geckodriver,
+                firefox_profile=self.firefox_profile,
+                options=self.options)
+        else:
+            self.driver = webdriver.Firefox(
+                firefox_profile=self.firefox_profile,
+                options=self.options)
+
+    def load_extensions(self):
+        if self.extensions_folder and exists(self.extensions_folder):
+            extensions = os.listdir(self.extensions_folder)
+            for extension in extensions:
+                self.driver.install_addon(
+                    join(self.extensions_folder, extension), temporary=True)
+                event_data = {"extension": extension}
+                self.handle_event(BrowserEvents.EXTENSION_LOADED,
+                                  event_data)
+
+            event_data = {"extensions": extensions}
+            self.handle_event(BrowserEvents.EXTENSIONS_ALL_LOADED, event_data)
+            return extensions
+        return []
+
+
+class TorBrowser(FirefoxBrowser):
+    def __init__(self, geckodriver=None, headless=False,
+                 homepage="https://check.torproject.org/",
+                 debug=True, binary=None, prefs_js=None,
+                 extensions_folder=None, torrc='/etc/tor/',
+                 js_enabled=False, images_enabled=True):
+
         self.javascript_enabled = js_enabled
         self.images_enabled = images_enabled
-        self.firefox_binary = FirefoxBinary(tor_ff_binary)
-        self.firefox_profile = FirefoxProfile(torrc)
+        self.torrc = torrc
+
+        if not binary:
+            binary = self.find_tor_browser()
+            if not len(binary):
+                raise TorNotFound
+            binary = binary[0]
+
+        if not exists(binary):
+            raise TorNotFound
+
+        super().__init__(geckodriver, headless, homepage, debug, binary,
+                         prefs_js, extensions_folder)
 
     @staticmethod
     def find_tor_browser():
@@ -572,54 +675,39 @@ class TorBrowser(PyBrowser):
                 binaries.append(join(base, "firefox"))
         return binaries
 
-    def set_tor_profile(self):
-        # set some privacy settings
-        self.firefox_profile.set_preference("places.history.enabled", False)
-        self.firefox_profile.set_preference("privacy.clearOnShutdown.offlineApps",
-                                       True)
-        self.firefox_profile.set_preference("privacy.clearOnShutdown.passwords",
-                                       True)
-        self.firefox_profile.set_preference("privacy.clearOnShutdown.siteSettings",
-                                       True)
-        self.firefox_profile.set_preference("privacy.sanitize.sanitizeOnShutdown",
-                                       True)
-        self.firefox_profile.set_preference("signon.rememberSignons", False)
-        self.firefox_profile.set_preference("network.cookie.lifetimePolicy", 2)
-        self.firefox_profile.set_preference("network.dns.disablePrefetch", True)
-        self.firefox_profile.set_preference("network.http.sendRefererHeader", 0)
+    def create_tor_profile(self):
+        profile = FirefoxProfile(self.torrc)
+        # set some privacy settings by default
+        profile.set_preference("places.history.enabled", False)
+        profile.set_preference("privacy.clearOnShutdown.offlineApps", True)
+        profile.set_preference("privacy.clearOnShutdown.passwords", True)
+        profile.set_preference("privacy.clearOnShutdown.siteSettings", True)
+        profile.set_preference("privacy.sanitize.sanitizeOnShutdown", True)
+        profile.set_preference("signon.rememberSignons", False)
+        profile.set_preference("network.cookie.lifetimePolicy", 2)
+        profile.set_preference("network.dns.disablePrefetch", True)
+        profile.set_preference("network.http.sendRefererHeader", 0)
 
         # set socks proxy
-        self.firefox_profile.set_preference("network.proxy.type", 1)
-        self.firefox_profile.set_preference("network.proxy.socks_version", 5)
-        self.firefox_profile.set_preference("network.proxy.socks", '127.0.0.1')
-        self.firefox_profile.set_preference("network.proxy.socks_port", 9050)
-        self.firefox_profile.set_preference("network.proxy.socks_remote_dns", True)
+        profile.set_preference("network.proxy.type", 1)
+        profile.set_preference("network.proxy.socks_version", 5)
+        profile.set_preference("network.proxy.socks", '127.0.0.1')
+        profile.set_preference("network.proxy.socks_port", 9050)
+        profile.set_preference("network.proxy.socks_remote_dns", True)
+
+        # user defined preferences
+        for pref in self.preferences:
+            profile.set_preference(pref, self.preferences[pref])
 
         # if you're really hardcore about your security
         # js can be used to reveal your true i.p.
-        self.firefox_profile.set_preference("javascript.enabled",
-                                            self.javascript_enabled)
+        profile.set_preference("javascript.enabled", self.javascript_enabled)
 
         # get a huge speed increase by not downloading images
         if not self.images_enabled:
-            self.firefox_profile.set_preference( "permissions.default.image", 2 )
+            profile.set_preference("permissions.default.image", 2)
 
-    # browser interaction
-    def new_session(self):
-        self.stop()
-        self.set_tor_profile()
-        if self.exec_path:
-            self.driver = webdriver.Firefox(executable_path=self.exec_path,
-                                            options=self.options,
-                                            firefox_profile=self.firefox_profile)
-        else:
-            self.driver = webdriver.Firefox(options=self.options,
-                                            firefox_profile=self.firefox_profile)
+        return profile
 
-        self.driver.get(self.homepage)
-        event_data = {"open_tabs": self.open_tabs,
-                      "tab_id": self.current_tab_id,
-                      "current_url": self.current_url,
-                      "tab2url": self.tab2url}
-        self.handle_event(BrowserEvents.BROWSER_OPEN, event_data)
-
+    def create_firefox_profile(self):
+        return self.create_tor_profile()
