@@ -10,7 +10,6 @@ if __name__ == "__main__":
     # Using context manager
     with TorBrowser(gecko_driver,
                     headless=True,
-                    images_enabled=False,
                     js_enabled=False,
                     tor_ff_binary=binary) as browser:
         url = browser.find_and_click_xpath("/html/body/div[2]/p[2]/a[2]")
