@@ -1,15 +1,18 @@
 from selenium import webdriver
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.firefox.options import Options
-from os.path import join, dirname
+import os
+from os.path import join, dirname, exists
 from tempfile import gettempdir
 from selenium.common.exceptions import NoSuchWindowException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from pombo_correio.exceptions import NoSession, ElementNotFound, \
-    FireFoxCrashed, \
-    InvalidElement, InvalidTabID
+    FireFoxCrashed, InvalidElement, InvalidTabID, TorNotFound
 from enum import IntEnum
+from xdg import XDG_DATA_HOME
 
 
 class BrowserEvents(IntEnum):
@@ -192,8 +195,6 @@ class PyBrowser:
     def search_xpath(self, xpath, source_element=None, filter=None):
         event_data = {"xpath": xpath,
                       "tab_id": self.current_tab_id,
-                      "source_element": source_element.id if
-                      source_element else None,
                       "filter": filter,
                       "url": self.current_url}
 
@@ -201,6 +202,7 @@ class PyBrowser:
             source_element = self.driver
         else:
             source_element = self._validate_element(source_element)
+            event_data["source_element"] = source_element.id
 
         self.handle_event(BrowserEvents.SEARCH_XPATH, event_data)
 
@@ -253,8 +255,6 @@ class PyBrowser:
     def search_css(self, css_selector, source_element=None, filter=None):
         event_data = {"css_selector": css_selector,
                       "tab_id": self.current_tab_id,
-                      "source_element": source_element.id if
-                      source_element else None,
                       "filter": filter,
                       "url": self.current_url}
 
@@ -262,6 +262,7 @@ class PyBrowser:
             source_element = self.driver
         else:
             source_element = self._validate_element(source_element)
+            event_data["source_element"] = source_element.id
 
         self.handle_event(BrowserEvents.SEARCH_CSS, event_data)
 
@@ -539,3 +540,86 @@ class PyBrowser:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
+
+
+class TorBrowser(PyBrowser):
+    def __init__(self, exec_path=None, headless=False,
+                 homepage="https://check.torproject.org/",
+                 debug=True, torrc='/etc/tor/', tor_ff_binary=None,
+                 js_enabled=False, images_enabled=True):
+        super().__init__(exec_path, headless, homepage, debug)
+        self.torrc = torrc
+        if not tor_ff_binary:
+            tor_ff_binary = self.find_tor_browser()
+            if not len(tor_ff_binary):
+                raise TorNotFound
+            tor_ff_binary = tor_ff_binary[0]
+
+        if not exists(tor_ff_binary):
+            raise TorNotFound
+        self.javascript_enabled = js_enabled
+        self.images_enabled = images_enabled
+        self.firefox_binary = FirefoxBinary(tor_ff_binary)
+        self.firefox_profile = FirefoxProfile(torrc)
+
+    @staticmethod
+    def find_tor_browser():
+        """ look for tor browser binary """
+        binaries = []
+        tor_xdg = join(XDG_DATA_HOME, "torbrowser/tbb/")
+        for base, folders, files in os.walk(tor_xdg):
+            if "firefox" in files:
+                binaries.append(join(base, "firefox"))
+        return binaries
+
+    def set_tor_profile(self):
+        # set some privacy settings
+        self.firefox_profile.set_preference("places.history.enabled", False)
+        self.firefox_profile.set_preference("privacy.clearOnShutdown.offlineApps",
+                                       True)
+        self.firefox_profile.set_preference("privacy.clearOnShutdown.passwords",
+                                       True)
+        self.firefox_profile.set_preference("privacy.clearOnShutdown.siteSettings",
+                                       True)
+        self.firefox_profile.set_preference("privacy.sanitize.sanitizeOnShutdown",
+                                       True)
+        self.firefox_profile.set_preference("signon.rememberSignons", False)
+        self.firefox_profile.set_preference("network.cookie.lifetimePolicy", 2)
+        self.firefox_profile.set_preference("network.dns.disablePrefetch", True)
+        self.firefox_profile.set_preference("network.http.sendRefererHeader", 0)
+
+        # set socks proxy
+        self.firefox_profile.set_preference("network.proxy.type", 1)
+        self.firefox_profile.set_preference("network.proxy.socks_version", 5)
+        self.firefox_profile.set_preference("network.proxy.socks", '127.0.0.1')
+        self.firefox_profile.set_preference("network.proxy.socks_port", 9050)
+        self.firefox_profile.set_preference("network.proxy.socks_remote_dns", True)
+
+        # if you're really hardcore about your security
+        # js can be used to reveal your true i.p.
+        self.firefox_profile.set_preference("javascript.enabled",
+                                            self.javascript_enabled)
+
+        # get a huge speed increase by not downloading images
+        if not self.images_enabled:
+            self.firefox_profile.set_preference( "permissions.default.image", 2 )
+
+    # browser interaction
+    def new_session(self):
+        self.stop()
+        self.set_tor_profile()
+        if self.exec_path:
+            self.driver = webdriver.Firefox(executable_path=self.exec_path,
+                                            options=self.options,
+                                            firefox_profile=self.firefox_profile)
+        else:
+            self.driver = webdriver.Firefox(options=self.options,
+                                            firefox_profile=self.firefox_profile)
+
+        self.driver.get(self.homepage)
+        event_data = {"open_tabs": self.open_tabs,
+                      "tab_id": self.current_tab_id,
+                      "current_url": self.current_url,
+                      "tab2url": self.tab2url}
+        self.handle_event(BrowserEvents.BROWSER_OPEN, event_data)
+

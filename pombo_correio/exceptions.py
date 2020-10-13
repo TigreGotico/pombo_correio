@@ -16,3 +16,7 @@ class InvalidElement(ValueError):
 
 class InvalidTabID(ValueError):
     """ not a valid tab id """
+
+
+class TorNotFound(EnvironmentError):
+    """ tor not found in xdg path or wrong binary path specified"""
