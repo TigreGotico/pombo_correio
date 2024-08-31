@@ -19,10 +19,11 @@ if __name__ == "__main__":
     # https://github.com/mozilla/geckodriver/releases
 
     # Using context manager
-    with Inspirobot(geckodriver) as bot:
+    with Inspirobot() as bot:
         url = bot.generate()
-        url = bot.generate()
-        url = bot.generate()
+        print(url)
+        #url = bot.generate()
+        #url = bot.generate()
     """
 BrowserEvents.BROWSER_OPEN {'open_tabs': ['15'], 'tab_id': '15', 'homepage': 'https://inspirobot.me/'}
 BrowserEvents.OPEN_URL {'url': 'https://inspirobot.me/', 'old_url': 'https://inspirobot.me/', 'tab_id': '15'}

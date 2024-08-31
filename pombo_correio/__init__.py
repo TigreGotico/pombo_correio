@@ -1,21 +1,28 @@
-from selenium import webdriver
-from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
-from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
-from selenium.webdriver.firefox.options import Options
+import json
 import os
-from os.path import join, dirname, exists
+from enum import IntEnum
+from os.path import join, exists
 from tempfile import gettempdir
+from time import sleep
+from typing import Optional, Dict, Callable, Union, List
+
+import requests
 from selenium.common.exceptions import NoSuchWindowException
+from selenium.webdriver import FirefoxOptions
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.ui import WebDriverWait
+# from selenium import webdriver
+from seleniumwire import webdriver
+
 from pombo_correio.exceptions import NoSession, ElementNotFound, \
     FireFoxCrashed, InvalidElement, InvalidTabID, TorNotFound, DriverNotSet, \
     PreferencesFileNotFound, PreferencesParseError, TabDiscarded
-from enum import IntEnum
-from xdg import XDG_DATA_HOME
-import json
-from time import sleep
+from pombo_correio.exceptions import NoSession, ElementNotFound, \
+    FireFoxCrashed, InvalidElement, InvalidTabID, TorNotFound, DriverNotSet, \
+    PreferencesFileNotFound, PreferencesParseError, TabDiscarded
 from pombo_correio.utils import Keys
 
 
@@ -44,27 +51,108 @@ class BrowserEvents(IntEnum):
     BROWSER_CLOSED = 100
 
 
-class PyBrowser:
-    def __init__(self, headless=False,
-                 homepage="https://liberapay.com/jarbasAI/",
-                 debug=True):
-        self.options = Options()
+class DefaultExtensions:
+    """
+    A class to manage default browser extensions, such as ad blockers and cookie managers, for Firefox.
+
+    Attributes:
+        COOKIES (str): URL to download the cookie management extension.
+        ADBLOCK (str): URL to download the adblock extension.
+        path (str): Directory path to save the downloaded extensions.
+    """
+
+    COOKIES: str = "https://addons.mozilla.org/firefox/downloads/file/4202634/i_dont_care_about_cookies-3.5.0.xpi"
+    ADBLOCK: str = "https://addons.mozilla.org/firefox/downloads/file/4328681/ublock_origin-1.59.0.xpi"
+
+    def __init__(self, path: Optional[str] = None, adblock: bool = True) -> None:
+        """
+        Initialize the DefaultExtensions instance, downloading the extensions to the specified path.
+
+        Args:
+            path (Optional[str]): Directory path where extensions will be saved. Defaults to a temp directory.
+            adblock (bool): Flag indicating whether to download the adblock extension. Defaults to True.
+        """
+        self.path = path or f"{gettempdir()}/ff_extensions"
+        os.makedirs(self.path, exist_ok=True)
+        data = requests.get(self.COOKIES).content
+        with open(f"{self.path}/{self.COOKIES.split('/')[-1]}", "wb") as f:
+            f.write(data)
+        if adblock:
+            data = requests.get(self.ADBLOCK).content
+            with open(f"{self.path}/{self.ADBLOCK.split('/')[-1]}", "wb") as f:
+                f.write(data)
+
+    @classmethod
+    def get(cls, path: Optional[str] = None) -> str:
+        """
+        Get the path where the extensions are stored.
+
+        Args:
+            path (Optional[str]): Optional path to store the extensions.
+
+        Returns:
+            str: The directory path where the extensions are stored.
+        """
+        ext = DefaultExtensions(path)
+        return ext.path
+
+
+class _AbstractBrowser:
+    """
+    An abstract class for managing browser sessions, handling events, and interacting with webpage elements.
+
+    Attributes:
+        options (Options): Browser options for the session.
+        headless (bool): Indicates if the browser should run in headless mode.
+        homepage (str): URL of the homepage to load at the start of the session.
+        debug (bool): Enables debug mode with verbose logging.
+        event_handlers (Dict[BrowserEvents, List[Callable]]): Dictionary to store event handlers for browser events.
+        tab_elements (Dict[str, Dict[str, List[WebElement]]]): Cache of webpage elements identified by CSS or XPath selectors.
+        _tab2url (Dict[str, str]): Mapping of tab IDs to their respective URLs.
+        _req_idx (int): Index to track the current request in the request queue.
+    """
+
+    def __init__(self, headless: bool = False, homepage: str = "https://openvoiceos.org", debug: bool = False) -> None:
+        """
+        Initialize the browser session with specified options.
+
+        Args:
+            headless (bool): Run browser in headless mode if True.
+            homepage (str): The URL to set as the homepage.
+            debug (bool): Enable debug mode for logging.
+        """
+        self.options: Options = Options()
+        self.headless: bool = headless
         if headless:
             self.options.headless = True
-        self._driver = None
-        self.homepage = homepage
-        self.event_handlers = {}
-        self.tab_elements = {}
-        self._tab2url = {}
-        self.debug = debug
+        self._driver: Optional[webdriver.Firefox] = None
+        self.homepage: str = homepage
+        self.event_handlers: Dict[BrowserEvents, List[Callable]] = {}
+        self.tab_elements: Dict[str, Dict[str, List]] = {}
+        self._tab2url: Dict[str, str] = {}
+        self.debug: bool = debug
+        self._req_idx: int = -1
 
-    # event handling
-    def add_event_handler(self, event, handler):
+    def add_event_handler(self, event: BrowserEvents, handler: Callable) -> None:
+        """
+        Add an event handler for a specific browser event.
+
+        Args:
+            event (BrowserEvents): The event to handle.
+            handler (Callable): The function to handle the event.
+        """
         if event not in self.event_handlers:
             self.event_handlers[event] = []
         self.event_handlers[event].append(handler)
 
-    def handle_event(self, event, data):
+    def handle_event(self, event: BrowserEvents, data: Dict) -> None:
+        """
+        Execute all handlers associated with a specific event.
+
+        Args:
+            event (BrowserEvents): The event to handle.
+            data (Dict): Data associated with the event.
+        """
         if self.debug:
             print(event, data)
         if event not in self.event_handlers:
@@ -77,7 +165,13 @@ class PyBrowser:
                 print(str(e))
 
     # browser properties
-    def _sync_tab2url(self):
+    def _sync_tab2url(self) -> Dict[str, str]:
+        """
+        Sync the internal mapping of tab IDs to their current URLs.
+
+        Returns:
+            Dict[str, str]: A dictionary mapping tab IDs to their current URLs.
+        """
         if not self._driver:
             return self._tab2url
         current = self.current_tab_id
@@ -96,11 +190,18 @@ class PyBrowser:
         return self._tab2url
 
     @property
-    def tab2url(self):
+    def tab2url(self) -> Dict[str, str]:
+        """Returns the current mapping of tab IDs to URLs."""
         return self._tab2url
 
     @property
-    def current_url(self):
+    def current_url(self) -> Optional[str]:
+        """
+        Get the current URL of the active tab.
+
+        Returns:
+            Optional[str]: The URL of the current tab, or None if the driver is not set.
+        """
         if not self._driver:
             return None
         try:
@@ -109,7 +210,13 @@ class PyBrowser:
             raise TabDiscarded
 
     @property
-    def open_tabs(self):
+    def open_tabs(self) -> List[str]:
+        """
+        Get a list of open tab IDs.
+
+        Returns:
+            List[str]: A list of tab IDs currently open in the browser.
+        """
         if not self._driver:
             return []
         try:
@@ -118,7 +225,13 @@ class PyBrowser:
             raise TabDiscarded
 
     @property
-    def current_tab_id(self):
+    def current_tab_id(self) -> Optional[str]:
+        """
+        Get the current tab ID.
+
+        Returns:
+            Optional[str]: The ID of the current tab, or None if the driver is not set.
+        """
         if not self._driver:
             return None
         try:
@@ -127,7 +240,21 @@ class PyBrowser:
             raise TabDiscarded
 
     # webpage elements
-    def _validate_element(self, element, idx=0):
+    def _validate_element(self, element, idx: int = 0):
+        """
+        Validate and retrieve a WebElement based on its identifier.
+
+        Args:
+            element (Union[WebElement, str]): The element or its identifier to validate.
+            idx (int): The index of the element to retrieve if multiple are found. Defaults to 0.
+
+        Returns:
+            WebElement: The validated WebElement.
+
+        Raises:
+            ElementNotFound: If the element cannot be found.
+            InvalidElement: If the element identifier is invalid.
+        """
         if not element:
             raise ElementNotFound
         # lookup xpath/css reference
@@ -418,6 +545,7 @@ class PyBrowser:
         else:
             element = self.get_css_selector(css_selector)
         self.click_element(element, {"css_selector": css_selector})
+        return element
 
     def find_and_send_keys_xpath(self, keys, xpath, timeout=10, wait=True):
         if wait:
@@ -507,7 +635,7 @@ class PyBrowser:
         self._driver.switch_to.window(window_name=tab_id)
         self.handle_event(BrowserEvents.SWITCH_TAB, event_data)
 
-    def got_to_url(self, url, tab_id=None):
+    def goto_url(self, url, tab_id=None):
         if tab_id:
             self.switch_to_tab(tab_id)
         else:
@@ -574,39 +702,66 @@ class PyBrowser:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
+    def iterate_requests(self):
+        for idx, request in enumerate(self._driver.requests):
+            if idx <= self._req_idx:
+                continue
+            self._req_idx = idx
+            yield request
 
-class FirefoxBrowser(PyBrowser):
-    def __init__(self, geckodriver=None, headless=False,
-                 homepage="https://liberapay.com/jarbasAI/",
-                 debug=True, binary=None, prefs_js=None,
-                 extensions_folder=None):
+
+class FirefoxBrowser(_AbstractBrowser):
+    """
+    A Firefox browser class extending the _AbstractBrowser to include specific configurations for Firefox.
+
+    Attributes:
+        geckodriver (Optional[str]): Path to the geckodriver executable.
+        preferences (dict): Firefox preferences loaded from a prefs.js file.
+        firefox_profile (FirefoxProfile): The Firefox profile used in the session.
+        extensions_folder (str): Directory containing Firefox extensions.
+    """
+
+    def __init__(self, geckodriver: Optional[str] = None, headless: bool = False, homepage: str = "https://openvoiceos.org", debug: bool = False, prefs_js: Optional[str] = None, extensions_folder: Optional[str] = None):
+        """
+        Initialize the Firefox browser with specific options and profile settings.
+
+        Args:
+            geckodriver (Optional[str]): Path to the geckodriver binary.
+            headless (bool): Run Firefox in headless mode if True.
+            homepage (str): The homepage URL.
+            debug (bool): Enable debug mode.
+            prefs_js (Optional[str]): Path to a prefs.js file to load Firefox preferences.
+            extensions_folder (Optional[str]): Path to a folder containing Firefox extensions.
+        """
         super().__init__(headless, homepage, debug)
         self.geckodriver = geckodriver
-        if binary:
-            self.firefox_binary = FirefoxBinary(binary)
-        else:
-            self.firefox_binary = None
-
-        if prefs_js:
-            self.preferences = self.parse_prefsjs(prefs_js)
-        else:
-            self.preferences = {}
-
+        self.preferences = self.parse_prefsjs(prefs_js) if prefs_js else {}
         self.firefox_profile = self.create_firefox_profile()
-        self.extensions_folder = extensions_folder
+        self.extensions_folder = extensions_folder or DefaultExtensions.get()
 
     @staticmethod
-    def find_firefox():
-        """ look for firefox binary """
+    def find_firefox() -> list[str]:
+        """
+        Locate the Firefox binary on the system.
+
+        Returns:
+            list[str]: A list of paths where Firefox binary is found.
+        """
         paths = ["/usr/bin/firefox"]
-        binaries = []
-        for p in paths:
-            if exists(p):
-                binaries.append(p)
+        binaries = [p for p in paths if exists(p)]
         return binaries
 
     @staticmethod
-    def parse_prefsjs(path):
+    def parse_prefsjs(path: str) -> dict:
+        """
+        Parse a prefs.js file to extract Firefox preferences.
+
+        Args:
+            path (str): The path to the prefs.js file.
+
+        Returns:
+            dict: A dictionary of preferences loaded from the file.
+        """
         if not exists(path):
             raise PreferencesFileNotFound
         with open(path) as f:
@@ -617,36 +772,45 @@ class FirefoxBrowser(PyBrowser):
                         continue
                     k, val = p.split('user_pref("')[1].split('", ')
                     val = val.split(");")[0]
-                    json_str += '"{key}": {val},'.format(key=k, val=val)
+                    json_str += f'"{k}": {val},'
                 except:
                     raise PreferencesParseError
             json_str = json_str[:-1] + "\n}"
-            prefs = json.loads(json_str)
-        return prefs
+            return json.loads(json_str)
 
-    def create_firefox_profile(self):
+    def create_firefox_profile(self) -> FirefoxProfile:
+        """
+        Create a Firefox profile with the specified preferences.
+
+        Returns:
+            FirefoxProfile: A configured Firefox profile object.
+        """
         profile = FirefoxProfile()
         for pref in self.preferences:
             profile.set_preference(pref, self.preferences[pref])
         return profile
 
-    def create_driver(self):
+    def create_driver(self) -> None:
+        """
+        Create a new Firefox WebDriver instance.
+        """
+        self.options = FirefoxOptions()
+        if self.headless:
+            self.options.add_argument("-headless")
         if self.geckodriver:
-            self._driver = webdriver.Firefox(
-                executable_path=self.geckodriver,
-                firefox_profile=self.firefox_profile,
-                options=self.options)
-        else:
-            self._driver = webdriver.Firefox(
-                firefox_profile=self.firefox_profile,
-                options=self.options)
+            self.options.binary_location = self.geckodriver
+        # mute sound
+        self.options.set_preference("media.volume_scale", "0.0")
+        # force popups into a new tab
+        self.options.set_preference("browser.link.open_newwindow.restriction", 0)
+        self.options.set_preference("browser.link.open_newwindow", 3)
+        self._driver = webdriver.Firefox(options=self.options)
 
     def load_extensions(self):
         if self.extensions_folder and exists(self.extensions_folder):
             extensions = os.listdir(self.extensions_folder)
             for extension in extensions:
-                self._driver.install_addon(
-                    join(self.extensions_folder, extension), temporary=True)
+                self._driver.install_addon(join(self.extensions_folder, extension), temporary=True)
                 event_data = {"extension": extension}
                 self.handle_event(BrowserEvents.EXTENSION_LOADED,
                                   event_data)
@@ -661,86 +825,3 @@ class FirefoxBrowser(PyBrowser):
         for tab in self.tab2url:
             if self.tab2url[tab].startswith("moz-extension://"):
                 self.close_tab(tab)
-
-
-class PrivacyFoxBrowser(FirefoxBrowser):
-    def __init__(self, geckodriver=None, headless=False,
-                 homepage="https://liberapay.com/jarbasAI/",
-                 debug=True, binary=None, prefs_js=None,
-                 extensions_folder=None):
-        prefs_js = prefs_js or join(dirname(__file__), "res", "prefs.js")
-        extensions_folder = extensions_folder or \
-                            join(dirname(__file__), "res", "extensions")
-        super().__init__(geckodriver, headless, homepage, debug, binary,
-                         prefs_js, extensions_folder)
-
-
-class TorBrowser(FirefoxBrowser):
-    def __init__(self, geckodriver=None, headless=False,
-                 homepage="https://torproject.org/",
-                 debug=True, binary=None, prefs_js=None,
-                 extensions_folder=None, torrc='/etc/tor/',
-                 js_enabled=False, images_enabled=True):
-
-        self.javascript_enabled = js_enabled
-        self.images_enabled = images_enabled
-        self.torrc = torrc
-
-        if not binary:
-            binary = self.find_tor_browser()
-            if not len(binary):
-                raise TorNotFound
-            binary = binary[0]
-
-        if not exists(binary):
-            raise TorNotFound
-
-        super().__init__(geckodriver, headless, homepage, debug, binary,
-                         prefs_js, extensions_folder)
-
-    @staticmethod
-    def find_tor_browser():
-        """ look for tor browser binary """
-        binaries = []
-        tor_xdg = join(XDG_DATA_HOME, "torbrowser/tbb/")
-        for base, folders, files in os.walk(tor_xdg):
-            if "firefox" in files:
-                binaries.append(join(base, "firefox"))
-        return binaries
-
-    def create_tor_profile(self):
-        profile = FirefoxProfile(self.torrc)
-        # set some privacy settings by default
-        profile.set_preference("places.history.enabled", False)
-        profile.set_preference("privacy.clearOnShutdown.offlineApps", True)
-        profile.set_preference("privacy.clearOnShutdown.passwords", True)
-        profile.set_preference("privacy.clearOnShutdown.siteSettings", True)
-        profile.set_preference("privacy.sanitize.sanitizeOnShutdown", True)
-        profile.set_preference("signon.rememberSignons", False)
-        profile.set_preference("network.cookie.lifetimePolicy", 2)
-        profile.set_preference("network.dns.disablePrefetch", True)
-        profile.set_preference("network.http.sendRefererHeader", 0)
-
-        # set socks proxy
-        profile.set_preference("network.proxy.type", 1)
-        profile.set_preference("network.proxy.socks_version", 5)
-        profile.set_preference("network.proxy.socks", '127.0.0.1')
-        profile.set_preference("network.proxy.socks_port", 9050)
-        profile.set_preference("network.proxy.socks_remote_dns", True)
-
-        # user defined preferences
-        for pref in self.preferences:
-            profile.set_preference(pref, self.preferences[pref])
-
-        # if you're really hardcore about your security
-        # js can be used to reveal your true i.p.
-        profile.set_preference("javascript.enabled", self.javascript_enabled)
-
-        # get a huge speed increase by not downloading images
-        if not self.images_enabled:
-            profile.set_preference("permissions.default.image", 2)
-
-        return profile
-
-    def create_firefox_profile(self):
-        return self.create_tor_profile()
