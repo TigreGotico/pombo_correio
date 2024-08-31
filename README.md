@@ -47,8 +47,6 @@ with Inspirobot(geckodriver=geckodriver) as bot:
 
 2. **Browser Navigation**: The script navigates to the Inspirobot homepage, clicks the "Generate" button, waits for the image to appear, and then retrieves the URL of the image.
 
-3. **Running the Script**: When the script is run, it will print the URL of the generated inspirational image to the console.
-
 ### Requirements
 
 - **Python**: Make sure you have Python installed.
@@ -56,7 +54,7 @@ with Inspirobot(geckodriver=geckodriver) as bot:
   ```bash
   pip install selenium selenium-wire
   ```
-- **Geckodriver**: Download `geckodriver` from the [official releases page](https://github.com/mozilla/geckodriver/releases) and place it in the same directory as the script or add it to your system's PATH.
+- **Geckodriver**: Download `geckodriver` from the [official releases page](https://github.com/mozilla/geckodriver/releases) 
 
 > **NOTE** - if Geckodriver is not provided the system firefox install will be used if available
 
